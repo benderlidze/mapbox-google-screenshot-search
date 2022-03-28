@@ -147,8 +147,6 @@
                     // console.log('one', one);
                     // map.getSource("maine").setData(one)
 
-
-
                     // var bbox = turf.bbox(one);
                     // var bboxPolygon = turf.bboxPolygon(bbox);
                     // console.log('bboxPolygon', bboxPolygon);
@@ -161,12 +159,12 @@
                     //     a.click(); //Downloaded file
                     // })
 
-
-                    const list = json.features.splice(0, 3)
+                    let start = 0;
+                    const list = json.features.splice(start, 2700)
                     console.log('list', list);
 
 
-
+                    
                     (async () => {
                         for (let i = 0; i < list.length; i++) {
 
@@ -184,37 +182,39 @@
                                 const img = map.getCanvas().toDataURL()
                                 var a = document.createElement("a"); //Create <a>
                                 a.href = img; //Image Base64 Goes here
-                                a.download = `image_${i}.png`; //File name Here
+                                a.download = `image_${start}.png`; //File name Here
                                 a.click(); //Downloaded file
 
 
-                                save(`image_${i}.json`, JSON.stringify(poly.properties));
+                                save(`image_${start}.json`, JSON.stringify(poly.properties));
                             })
 
                             await delay(3000);
                             console.log(i, list[i]);
+                            start++;
                         }
                     })();
+                    
+                   
+                    // list.forEach(poly => {
 
-                    list.forEach(poly => {
-
-                        const FeatureCollection = { type: 'FeatureCollection', features: poly }
-                        console.log('one', poly);
-                        map.getSource("maine").setData(poly)
+                    //     const FeatureCollection = { type: 'FeatureCollection', features: poly }
+                    //     console.log('one', poly);
+                    //     map.getSource("maine").setData(poly)
 
 
-                        var bbox = turf.bbox(poly);
-                        var bboxPolygon = turf.bboxPolygon(bbox);
-                        console.log('bboxPolygon', bboxPolygon);
-                        map.fitBounds(bboxPolygon.bbox, { padding: 250, duration: 0 });
-                        map.once("idle", () => {
-                            // const img = map.getCanvas().toDataURL()
-                            // var a = document.createElement("a"); //Create <a>
-                            // a.href = img; //Image Base64 Goes here
-                            // a.download = "Image.png"; //File name Here
-                            // a.click(); //Downloaded file
-                        })
-                    })
+                    //     var bbox = turf.bbox(poly);
+                    //     var bboxPolygon = turf.bboxPolygon(bbox);
+                    //     console.log('bboxPolygon', bboxPolygon);
+                    //     map.fitBounds(bboxPolygon.bbox, { padding: 250, duration: 0 });
+                    //     map.once("idle", () => {
+                    //         const img = map.getCanvas().toDataURL()
+                    //         var a = document.createElement("a"); //Create <a>
+                    //         a.href = img; //Image Base64 Goes here
+                    //         a.download = "Image.png"; //File name Here
+                    //         a.click(); //Downloaded file
+                    //     })
+                    // })
 
                 })
 
