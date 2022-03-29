@@ -84,6 +84,8 @@
             top: 100%;
             left: 0;
             right: 0;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
         }
 
         .autocomplete-items div {
@@ -197,22 +199,30 @@
                 }
             });
 
+            map.addLayer({
+                'id': 'highlighted',
+                'type': 'fill',
+                'source': 'maine',
+                'paint': {
+                    'fill-outline-color': '#484896',
+                    'fill-color': 'red',
+                    'fill-opacity': 0.75
+                },
+                // Display none by adding a
+                // filter with an empty string.
+                'filter': ['in', 'id', '']
+            });
+
             fetch("data.json")
                 .then(data => data.json())
                 .then(json => {
-                    console.log('json', json);
-                    const one = json;
+                    const one = json
+
+                    one.features.forEach((j, key) => j.properties.id = key);
+                    console.log('one', one);
                     const FeatureCollection = { type: 'FeatureCollection', features: one }
                     map.getSource("maine").setData(one)
-
-
-
-
-
                     autocomplete(document.getElementById("myInput"), json);
-
-
-
                 })
 
             map.on('click', 'maine', (e) => {
@@ -227,6 +237,9 @@
                     .setLngLat(e.lngLat)
                     .setHTML(text)
                     .addTo(map);
+
+
+                highlightPoly(e.features[0].properties.id)
             });
 
             // Change the cursor to a pointer when the mouse is over the places layer.
@@ -257,7 +270,10 @@
         })
 
 
-
+        function highlightPoly(id) {
+            map.setFilter('highlighted', ['in', 'id', '']);//clear all
+            map.setFilter('highlighted', ['in', 'id', id]);
+        }
 
         function autocomplete(inp, data) {
             /*the autocomplete function takes two arguments,
@@ -316,6 +332,7 @@
 
 
                             const poly = data.features[id];
+                            highlightPoly(poly.properties.id)
 
                             inp.value = poly.properties.address
 
