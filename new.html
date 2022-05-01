@@ -1,0 +1,255 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Add multiple geometries from one GeoJSON source</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <script src="https://unpkg.com/maplibre-gl@2.1.7/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@2.1.7/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 800px;
+            height: 800px;
+        }
+
+        #layers {
+            position: absolute;
+            display: flex;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background-color: white;
+            padding: 10px;
+            display: none;
+        }
+
+        #info-pane {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 400;
+            padding: 1em;
+
+            background: white;
+            border: 1px;
+            opacity: 90%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="layers"></div>
+    <div id="map"></div>
+
+
+    <script>
+
+        const layersDiv = document.getElementById("layers")
+        const layers = [
+            { name: "ESRI", tiles: "https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=AAPK20bd66aee9bf4140863affb844e89374VE-vBg4JAGSqo9cSQaMaq8GN-DsGjuuO0LLqZ6OfNEWP18Of7XAMGrQT0vHx4U-1" },
+            { name: "OSM", tiles: "https://tile.openstreetmap.org/{z}/{x}/{y}.png" },
+            { name: "GOOGLE", tiles: "https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" },
+        ]
+
+        var map = new maplibregl.Map({
+            container: 'map',
+            style:
+                'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL',
+            center: { lng: -122.20128658548998, lat: 37.464674749287965 },
+            zoom: 16,
+            preserveDrawingBuffer: true
+        });
+
+        map.on('load', function () {
+
+            layers.forEach(layer => {
+
+                const { name, tiles } = layer;
+                map.addSource(name, {
+                    'type': 'raster',
+                    'tiles': [tiles],
+                    tileSize: 256,
+                });
+                map.addLayer({
+                    'id': name,
+                    'type': 'raster',
+                    'source': name,
+                    'minzoom': 0,
+                    'maxzoom': 22,
+                    'visibility': 'none'
+                });
+                map.setLayoutProperty(name, 'visibility', 'none');
+
+                layersDiv.innerHTML += `
+                    <label for="${name}"><input type="radio" name="layers" id="${name}">${name}</label>
+                `
+            })
+
+            // map.setLayoutProperty('ESRI', 'visibility', 'visible');
+            // map.setLayoutProperty('OSM', 'visibility', 'visible');
+            map.setLayoutProperty('GOOGLE', 'visibility', 'visible');
+
+            map.addSource('maine', {
+                'type': 'geojson',
+                'data': {
+                    'type': 'Feature',
+                    'geometry': {
+                        'type': 'Polygon',
+                        // These coordinates outline Maine.
+                        'coordinates': [
+                        ]
+                    }
+                }
+            });
+
+            // Add a new layer to visualize the polygon.
+            map.addLayer({
+                'id': 'maine',
+                'type': 'fill',
+                'source': 'maine', // reference the data source
+                'layout': {},
+                'paint': {
+                    'fill-color': '#0080ff', // blue color fill
+                    'fill-opacity': 0.2
+                }
+            });
+            // Add a black outline around the polygon.
+            map.addLayer({
+                'id': 'outline',
+                'type': 'line',
+                'source': 'maine',
+                'layout': {},
+                'paint': {
+                    'line-color': '#000',
+                    'line-width': 1
+                }
+            });
+
+            fetch("data.json")
+                .then(data => data.json())
+                .then(json => {
+                    console.log('json', json);
+
+                    let start = 0;
+                    const list = json.features.splice(start, 2700);
+                    console.log('list', list);
+                    
+                    (async () => {
+                        for (let i = 0; i < list.length; i++) {
+
+                            const poly = list[i];
+                            const FeatureCollection = { type: 'FeatureCollection', features: poly };
+                            console.log('one', poly);
+                            map.getSource("maine").setData(poly);
+
+                            var bbox = turf.bbox(poly);
+                            var bboxPolygon = turf.bboxPolygon(bbox);
+                            console.log('bboxPolygon', bboxPolygon);
+                            map.fitBounds(bboxPolygon.bbox, { padding: 250, duration: 0 });
+                            map.once("idle", () => {
+                                const img = map.getCanvas().toDataURL();
+                                var a = document.createElement("a"); //Create <a>
+                                a.href = img; //Image Base64 Goes here
+                                a.download = `${start}.png`; //File name Here
+                                a.click(); //Downloaded file
+                                
+                                let metadata = {
+                                    description: `This is one piece of the land, Atherton. You can purchase it and build your dream life on it.`, 
+                                    external_url: "https://atherton.io/", 
+                                    image: `${start}.png`, 
+                                    name: `Atherton #${start + 1}`,
+                                    attributes: [
+                                        {
+                                            trait_type: "City",
+                                            value: poly.properties.city
+                                        },
+                                        {
+                                            trait_type: "Shape Area",
+                                            value: poly.properties.shape_area
+                                        },
+                                        {
+                                            trait_type: "Incorporat",
+                                            value: poly.properties.incorporat
+                                        },
+                                        {
+                                            trait_type: "Shape Leng",
+                                            value: poly.properties.shape_leng
+                                        },
+                                        {
+                                            trait_type: "Address",
+                                            value: poly.properties.address
+                                        },
+                                        {
+                                            trait_type: "APN",
+                                            value: poly.properties.apn
+                                        }
+                                    ]
+                                };
+
+                                save(`${start}.json`, JSON.stringify(metadata));
+                            })
+
+                            await delay(8000);
+                            console.log(i, list[i]);
+                            start++;
+                        }
+                    })();
+                })
+
+
+        });
+
+        function delay(ms) {
+            return new Promise((resolve, reject) => {
+                setTimeout(resolve, ms);
+            });
+        }
+
+        function save(filename, data) {
+            const blob = new Blob([data], { type: 'text/csv' });
+            if (window.navigator.msSaveOrOpenBlob) {
+                window.navigator.msSaveBlob(blob, filename);
+            }
+            else {
+                const elem = window.document.createElement('a');
+                elem.href = window.URL.createObjectURL(blob);
+                elem.download = filename;
+                document.body.appendChild(elem);
+                elem.click();
+                document.body.removeChild(elem);
+            }
+        }
+
+        document.querySelector("#layers").addEventListener("click", () => {
+
+            const layer = document.querySelector("[name=layers]:checked");
+
+            if (layer && layer.id) {
+                console.log('layer.id', layer.id);
+                //hide all
+                layers.forEach(layer => {
+                    map.setLayoutProperty(layer.name, 'visibility', 'none');
+                })
+                //show only selected
+                map.setLayoutProperty(layer.id, 'visibility', 'visible');
+            }
+        })
+
+    </script>
+
+</body>
+
+</html>
